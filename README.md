@@ -78,8 +78,8 @@ _✨ NoneBot 桌游约车助手 ✨_
 
 |               配置项               |  必填 |                       默认值                      | 说明                      |
 | :-----------------------------: | :-: | :--------------------------------------------: | :---------------------- |
-| `BOARDGAMEHELPER_DATABASE_PATH` |  否  | `sqlite:///./data/BoardGameHelper/database.db` | 插件数据库路径，应使用 SQLite URI |
-|   `BOARDGAMEHELPER_JSON_PATH`   |  否  |         `./data/BoardGameHelper/json/`         | JSON 数据存储路径，用于保存配置文件 |
+| `boardgamehelper_database_url` |  否  | `sqlite:///./data/BoardGameHelper/database.db` | 插件数据库位置，应使用 SQLite URL |
+|   `boardgamehelper_json_path`   |  否  |         `./data/BoardGameHelper/json/`         | JSON 数据存储路径，用于保存配置文件 |
 
 
 ## 🎉 使用

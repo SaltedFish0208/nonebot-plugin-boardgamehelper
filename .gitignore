@@ -142,4 +142,7 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
+#不该允许本地的databese被上传
+data/BoardGameHelper/database.db
+
 # End of https://www.toptal.com/developers/gitignore/api/python

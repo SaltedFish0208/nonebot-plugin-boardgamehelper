@@ -142,11 +142,12 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
-#忽略pypi配置文件
+#忽略poetry配置文件
 plugins/dist/
 plugins/LICENSE
 plugins/pyproject.toml
 plugins/README.md
+plugins/poetry.lock
 
 #不该允许本地的databese被上传
 data/BoardGameHelper/database.db

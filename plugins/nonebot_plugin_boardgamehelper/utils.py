@@ -24,3 +24,23 @@ def sqlite_file_exists(url: str) -> tuple[bool, Optional[Path]]:
         return True, None
     return False, path  # 返回 Path 对象（可能是相对路径）
 
+def json_file_exists(path: str, file: str) -> tuple[bool, Optional[Path]]:
+    """
+    判断 JSON 文件是否存在
+
+    Args:
+        path (str): 存放 json 文件的目录路径
+        file (str): 需要验证存在的 json 文件名
+
+    Returns:
+        tuple[bool, Optional[Path]]:
+            - 文件存在时，返回 (True, None)
+            - 文件不存在时，返回 (False, 指向该文件的 Path 对象)
+    """
+    dir_path = Path(path)
+    file_path = dir_path / file
+
+    if file_path.is_file():
+        return True, None
+
+    return False, file_path

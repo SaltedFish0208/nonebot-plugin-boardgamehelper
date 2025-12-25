@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import cast
 from zoneinfo import ZoneInfo
 
-from nonebot import get_plugin_config, logger, on_command
+from nonebot import get_plugin_config, logger, on_command, require
 from nonebot.adapters.onebot.v11 import (
     GROUP_ADMIN,
     GROUP_OWNER,
@@ -33,10 +33,16 @@ from .validator import (
 
 __plugin_meta__ = PluginMetadata(
     name="nonebot_plugin_boardgamehelper",
-    description="",
+    description="一个 NoneBot2 桌游约车助手插件，提供桌游群招募、发车、封车等功能。",
     usage="",
+    type="application",
+    homepage="https://github.com/SaltedFish0208/nonebot-plugin-boardgamehelper",
     config=Config,
+    supported_adapters={"~onebot.v11"}
 )
+
+require("nonebot_plugin_alconna")
+require("nonebot_plugin_apscheduler")
 
 config = get_plugin_config(Config)
 

@@ -94,3 +94,8 @@ _✨ NoneBot 桌游约车助手 ✨_
 参考[nonebot->数据存储](https://nonebot.dev/docs/best-practice/data-storing)确认插件数据默认的存储位置
 
 回复文件存放在config目录，数据库存放在data目录
+
+## 📋 TODO
+
+- [ ] 将数据库操作相关迁移至nonebot-plugin-orm
+- [ ] 完成查图包功能

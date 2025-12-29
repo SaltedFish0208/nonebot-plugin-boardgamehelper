@@ -29,7 +29,7 @@ _✨ NoneBot 桌游约车助手 ✨_
 该插件是一个 NoneBot2 桌游约车助手插件，提供桌游群招募、发车、封车等功能。
 
 ## 💿 安装
-<!--
+
 <details open>
 <summary>使用 nb-cli 安装</summary>
 在 nonebot2 项目的根目录下打开命令行, 输入以下指令即可安装
@@ -68,9 +68,6 @@ _✨ NoneBot 桌游约车助手 ✨_
     plugins = ["nonebot_plugin_boardgamehelper"]
 
 </details>
--->
-目前仅能通过源代码安装
-之后会传到pypi上的
 
 ## ⚙️ 配置
 
@@ -78,8 +75,7 @@ _✨ NoneBot 桌游约车助手 ✨_
 
 |               配置项               |  必填 |                       默认值                      | 说明                      |
 | :-----------------------------: | :-: | :--------------------------------------------: | :---------------------- |
-| `boardgamehelper_database_url` |  否  | `sqlite:///./data/BoardGameHelper/database.db` | 插件数据库位置，应使用 SQLite URL |
-|   `boardgamehelper_json_path`   |  否  |         `./data/BoardGameHelper/json/`         | JSON 数据存储路径，用于保存配置文件 |
+
 
 
 ## 🎉 使用
@@ -92,3 +88,9 @@ _✨ NoneBot 桌游约车助手 ✨_
 | 开启全群广播 | 超级用户/群主/管理员 |  否  |   群聊  |     开启桌游招募广播    |
 | 关闭全群广播 | 超级用户/群主/管理员 |  否  |   群聊  |     关闭桌游招募广播    |
 |  强制封车  |     超级用户    |  否  |   群聊  |    强制关闭一条桌游招募   |
+
+
+## 一些提示
+参考[nonebot->数据存储](https://nonebot.dev/docs/best-practice/data-storing)确认插件数据默认的存储位置
+
+回复文件存放在config目录，数据库存放在data目录

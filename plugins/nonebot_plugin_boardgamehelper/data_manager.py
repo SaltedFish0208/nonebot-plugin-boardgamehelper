@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Union
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import create_engine
+from sqlalchemy import URL, create_engine
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -14,6 +14,8 @@ BJ_TZ = ZoneInfo("Asia/Shanghai")
 """
 说真的，如果你能帮我重构一下这个部分就太好了
 我真不擅长对付ORM
+
+TODO: 迁移至nonebot-plugin-orm
 """
 
 class DataBaseManager:
@@ -21,9 +23,10 @@ class DataBaseManager:
     该类负责将数据写入数据库或将实例从数据库里读出
 
     Args:
-        url(str): 数据库URL
+        db_path("Path"): 指向数据库的path对象
     """
-    def __init__(self, url: str) -> None:
+    def __init__(self, db_path: "Path") -> None:
+        url = URL.create(drivername="sqlite", database=str(db_path))
         self.engine = create_engine(url, echo=False)
         Base.metadata.create_all(self.engine)
         self.SessionLocal = sessionmaker(bind=self.engine)
@@ -145,45 +148,31 @@ class DataBaseManager:
 
 class JsonIO:
     """
-    该类负责读写json为字典
+    该类负责使用 pathlib 读写 JSON 文件为字典
 
     Attr:
-        base_dir(str): 存放json的目录
+        path ("Path"): 指向JSON文件的Path对象
     """
-    def __init__(self, base_dir: str) -> None:
-        self.base_dir = Path(base_dir)
+    def __init__(self, path: Path) -> None:
+        self.path = path
 
-    def _full_path(self, filename: str) -> Path:
+    def load(self) -> dict:
         """
-        返回完整的 JSON 文件路径
-        """
-        path = self.base_dir / filename
-        if path.suffix.lower() != ".json":
-            path = path.with_suffix(".json")
-        return path
-
-    def load(self, filename: str) -> dict:
-        """
-        从指定文件名加载 JSON 数据
-
-        Args:
-            filename (str): JSON 文件名
+        从 JSON 文件加载数据
 
         Returns:
-            dict: JSON 内容
+            dict: JSON 内容，如果文件不存在返回空字典
         """
-        path = self._full_path(filename)
-        with path.open("r", encoding="utf-8") as f:
-            return json.load(f)
+        if not self.path.exists():
+            return {}
+        return json.loads(self.path.read_text(encoding="utf-8"))
 
-    def save(self, filename: str, data: dict) -> None:
+    def save(self, data: dict) -> None:
         """
-        将 dict 保存到指定文件名的 JSON 文件
+        将字典保存到 JSON 文件
 
         Args:
-            filename (str): 文件名
-            data (dict): 数据
+            data (dict): 要保存的数据
         """
-        path = self._full_path(filename)
-        with path.open("w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(data, ensure_ascii=False, indent=4), encoding="utf-8")

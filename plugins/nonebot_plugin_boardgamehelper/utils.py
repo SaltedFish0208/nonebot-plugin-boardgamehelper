@@ -1,46 +1,33 @@
-from pathlib import Path
-from typing import Optional
-from urllib.parse import urlparse
+
+from typing import TYPE_CHECKING
+
+from .data_manager import JsonIO
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
-def sqlite_file_exists(url: str) -> tuple[bool, Optional[Path]]:
-    """
-    判断 SQLite URL 对应的文件是否存在。
-    返回：
-    - 如果文件存在：返回True，None
-    - 如果文件不存在：返回False，路径不合法的话返回None，合法的话返回对应的 Path 对象
-    """
-    if not url.startswith("sqlite://"):
-        return False, None
-    parsed = urlparse(url)
-    path_str = parsed.path
-    # 处理 /./ 前缀，将 sqlite:///./data/... 转为 ./data/...
-    if path_str.startswith("/./"):
-        path_str = path_str[1:]  # 去掉第一个 /
-    # 转为 Path 对象
-    path = Path(path_str)
-    # 判断是否存在
-    if path.exists():
-        return True, None
-    return False, path  # 返回 Path 对象（可能是相对路径）
-
-def json_file_exists(path: str, file: str) -> tuple[bool, Optional[Path]]:
-    """
-    判断 JSON 文件是否存在
-
-    Args:
-        path (str): 存放 json 文件的目录路径
-        file (str): 需要验证存在的 json 文件名
-
-    Returns:
-        tuple[bool, Optional[Path]]:
-            - 文件存在时，返回 (True, None)
-            - 文件不存在时，返回 (False, 指向该文件的 Path 对象)
-    """
-    dir_path = Path(path)
-    file_path = dir_path / file
-
-    if file_path.is_file():
-        return True, None
-
-    return False, file_path
+def reply_generator(path: "Path") -> None:
+    json_file = JsonIO(path)
+    reply = {
+        "already_publish": "您已经发了一辆车",
+        "publish_tip": "接下来请输入发车信息，例：\n[桌游名] 璀璨宝石\n[人数] 1=3\n[房间名/房间密码] room/password\n[是否含教学] 是\n[语音房间链接] https://mornin.fm\n请在一分钟内内完成输入，超时后您需要重新发车",
+        "time_tip": "接下来请输入自动封车的时间，如\n18:00\n2025-07-21 19:19\n当您仅输入时间时，将会默认日期为当天",
+        "publish_missing_sth": "您的发车信息缺少条目：",
+        "please_check": "请检查后重新发车",
+        "date_missing_sth": "您的结束时间有以下问题：",
+        "published": "您的发车信息已经存入数据库并广播至其他群",
+        "no_recruitments": "现在还没有车",
+        "recruitments_now": "以下为一天内时间的车",
+        "recruitments_after": "以下为一天后时间的车",
+        "close_recruitment_success": "封车完成",
+        "close_recruitment_failed": "封车失败：\n车库里没有您发的车呢",
+        "ask_for_uuid": "请输入想要封掉的车的车车ID",
+        "delete_recruitment_success": "强制封车成功",
+        "delete_recruitment_failed": "强制封车失败，车库里没有该编号的车",
+        "broadcast_exists": "本群已经开启过了全群广播",
+        "open_broadcast_success": "本群开启了全群广播",
+        "broadcast_not_exists": "本群尚未开启全群广播，无法关闭",
+        "close_broadcast_success": "本群关闭了全群广播"
+    }
+    json_file.save(reply)

@@ -149,7 +149,7 @@ plugins/pyproject.toml
 plugins/README.md
 plugins/poetry.lock
 
-#不该允许本地的databese被上传
-data/BoardGameHelper/database.db
+#不该允许本地的data文件夹被上传
+data/
 
 # End of https://www.toptal.com/developers/gitignore/api/python

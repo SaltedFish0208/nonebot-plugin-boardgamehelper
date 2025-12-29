@@ -4,9 +4,12 @@ from zoneinfo import ZoneInfo
 
 from nonebot import get_plugin_config, logger, on_command, require
 
+
 require("nonebot_plugin_alconna")
 require("nonebot_plugin_apscheduler")
+require("nonebot_plugin_localstore")
 
+import nonebot_plugin_localstore as storage
 from nonebot.adapters.onebot.v11 import (
     GROUP_ADMIN,
     GROUP_OWNER,
@@ -27,7 +30,7 @@ from .config import Config
 from .data_manager import DataBaseManager, JsonIO
 from .models import BroadcastModel, PostsModel
 from .post_func import Post
-from .utils import json_file_exists, sqlite_file_exists
+from .utils import reply_generator
 from .validator import (
     ContentCheckResult,
     DateCheckResult,
@@ -47,35 +50,18 @@ __plugin_meta__ = PluginMetadata(
 
 
 config = get_plugin_config(Config)
-
-db_path = config.boardgamehelper_database_url
-reply_path = config.boardgamehelper_json_path
 BJ_TZ = ZoneInfo("Asia/Shanghai")
 
 
-sqlite_exists = sqlite_file_exists(config.boardgamehelper_database_url)
+db_path = storage.get_plugin_data_file("database.db")
+reply_path = storage.get_plugin_config_file("reply.json")
 
-if not sqlite_exists[0] and not sqlite_exists[1]:
-    logger.critical("哦不！你的boardgamehelper_database_url选项填错了，SQLite Url的格式应该形如'sqlite://path'")
-    raise ValueError("SQLite URL格式无效")  # noqa: TRY003
-elif not sqlite_exists[0] and sqlite_exists[1]:
-    file_path = sqlite_exists[1]
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.touch(exist_ok=True)
-
-json_lists = ["reply.json"]
-for json_file in json_lists:
-    json_exists = json_file_exists(config.boardgamehelper_json_path, json_file)
-    if not json_exists[0] and json_exists[1]:
-        file_path = json_exists[1]
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text('{"attention":"请前往https://github.com/SaltedFish0208/nonebot-plugin-boardgamehelper下载必要的json文件"}',
-                             encoding="utf-8"
-                             )
-        file_path.touch(exist_ok=True)
+db_path.touch(exist_ok=True)
+if not reply_path.exists():
+    reply_generator(reply_path)
 
 db = DataBaseManager(db_path)
-reply = JsonIO(reply_path).load("reply.json")
+reply = JsonIO(reply_path).load()
 
 publish_recruitment = on_command("发车", aliases={"桌游发车", "开车"})
 @publish_recruitment.handle()
@@ -220,7 +206,7 @@ reload_reply = on_command("重载回复")
 @reload_reply.handle()
 async def _():
     global reply  # noqa: PLW0603 目前重载的只有这一个json，之后再修吧
-    reply = JsonIO(reply_path).load("reply.json")
+    reply = JsonIO(reply_path).load()
     await UniMessage.text("success").finish()
 
 

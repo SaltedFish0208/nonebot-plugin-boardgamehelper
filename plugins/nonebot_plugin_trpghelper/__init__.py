@@ -4,7 +4,6 @@ from zoneinfo import ZoneInfo
 
 from nonebot import get_plugin_config, logger, on_command, require
 
-
 require("nonebot_plugin_alconna")
 require("nonebot_plugin_apscheduler")
 require("nonebot_plugin_localstore")
@@ -39,8 +38,8 @@ from .validator import (
 )
 
 __plugin_meta__ = PluginMetadata(
-    name="nonebot_plugin_boardgamehelper",
-    description="一个 NoneBot2 桌游约车助手插件，提供桌游群招募、发车、封车等功能。",
+    name="nonebot_plugin_trpghelper",
+    description="一个 NoneBot2 TRPG(桌面角色扮演游戏)约车助手插件，提供跑团群招募、发车、封车等功能。",  # noqa: E501
     usage="",
     type="application",
     homepage="https://github.com/SaltedFish0208/nonebot-plugin-boardgamehelper",
@@ -63,7 +62,7 @@ if not reply_path.exists():
 db = DataBaseManager(db_path)
 reply = JsonIO(reply_path).load()
 
-publish_recruitment = on_command("发车", aliases={"桌游发车", "开车"})
+publish_recruitment = on_command("发车")
 @publish_recruitment.handle()
 async def _(event: MessageEvent, state: T_State):
     if db.select(
@@ -118,7 +117,7 @@ async def _(state:T_State, message: str = ArgPlainText("end_time")):
     db.upsert(PostsModel, packaged)
     await UniMessage.text(reply["published"]).finish()
 
-query_recruitment = on_command("查车", aliases={"桌游查车"})
+query_recruitment = on_command("查车")
 @query_recruitment.handle()
 async def _(bot: Bot):
     all_recruitments = db.select(PostsModel, {}, first=False)
@@ -144,7 +143,7 @@ async def _(bot: Bot):
         ]
     ).finish()
 
-close_recruitment = on_command("封车", aliases={"桌游封车"})
+close_recruitment = on_command("封车")
 @close_recruitment.handle()
 async def _(event: MessageEvent):
     target = db.select(PostsModel, {"publisher_user_id": event.user_id}, first=True)

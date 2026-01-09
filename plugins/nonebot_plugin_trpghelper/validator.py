@@ -14,11 +14,9 @@ class DateCheckResult(Enum):
 
 class ContentCheckResult(Enum):
     OK = auto()
-    MISSING_BOARDGAME = "缺少[桌游名]"
-    MISSING_PLAYERS = "缺少[人数]"
-    MISSING_ROOM = "缺少[房间名/房间密码]"
-    MISSING_TUTORIAL = "缺少[是否含教学]"
-    MISSING_VOICE = "缺少[语音房间链接]"
+    MISSING_RULE = "缺少[游戏规则]"
+    MISSING_METHOD = "缺少[跑团方式]"
+    MISSING_PLATFORM = "缺少[平台]"
 
 # 北京时间 UTC+8
 BJ_TZ = ZoneInfo("Asia/Shanghai")
@@ -97,10 +95,8 @@ def validate_datetime(
 def _pre_process(input_str: str) -> str:
     input_str = input_str.replace("【", "[").replace("】", "]")
     patterns = [
-        re.escape("查找图包可以输入（图包查询：桌游名）"),
         re.escape("接下来请输入发车信息，例："),
-        re.escape("请在一分钟内内完成输入，超时后您需要重新发车"),
-        re.escape("请输入你的发车信息,如：")
+        re.escape("请在一分钟内内完成输入，超时后您需要重新发车")
     ]
     combined_pattern = "|".join(patterns)
     before_content = r"^[^\[]+"
@@ -119,7 +115,9 @@ def validate_content(input_str: str) -> tuple[list[ContentCheckResult], str]:
     normalized = _pre_process(input_str)
     # 定义检测规则
     checks = {
-        ContentCheckResult.MISSING_BOARDGAME: r"\[桌游名\](.*?)\n"
+        ContentCheckResult.MISSING_RULE: r"\[游戏规则\](.*?)\n",
+        ContentCheckResult.MISSING_METHOD: r"\[跑团方式\](.*?)\n",
+        ContentCheckResult.MISSING_PLATFORM: r"\[平台\](.*?)\n",
     }
 
     # 自动补换行

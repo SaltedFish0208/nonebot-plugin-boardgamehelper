@@ -175,4 +175,6 @@ class JsonIO:
             data (dict): 要保存的数据
         """
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(data, ensure_ascii=False, indent=4), encoding="utf-8")
+        self.path.write_text(
+            json.dumps(data, ensure_ascii=False, indent=4), encoding="utf-8"
+            )

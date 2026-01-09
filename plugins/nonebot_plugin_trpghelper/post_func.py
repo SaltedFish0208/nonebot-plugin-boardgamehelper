@@ -7,7 +7,7 @@ from nonebot_plugin_alconna import Text, UniMessage
 if TYPE_CHECKING:
     from .models import PostsModel
 
-
+alphabet = "abcdefghigklmnopqrstuvwxyz0123456789"
 class Post:
     """
     一个招募标准类
@@ -25,7 +25,7 @@ class Post:
             content: str,
             end_time: datetime
             ) -> None:
-        self.recruitment_code: str = shortuuid.ShortUUID().random(4)
+        self.recruitment_code: str = shortuuid.ShortUUID(alphabet=alphabet).random(4)
         self.publisher_user_id = user_id
         self.publisher_name = user_name
         self.content = content

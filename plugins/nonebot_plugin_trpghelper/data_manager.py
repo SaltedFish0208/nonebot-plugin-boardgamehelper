@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Literal, Optional, TypeVar, Union, overload
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import URL, create_engine
@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from .models import Base
 
+ORM_Model = TypeVar("ORM_Model", bound=Base)
 BJ_TZ = ZoneInfo("Asia/Shanghai")
 """
 说真的，如果你能帮我重构一下这个部分就太好了
@@ -76,12 +77,28 @@ class DataBaseManager:
             session.query(model).filter_by(**filters).delete()
             session.commit()
 
+    @overload
+    def select(
+        self,
+        model: type[ORM_Model],
+        filters: dict[Any, Any],
+        *,first: Literal[True]
+    ) -> Optional[ORM_Model]: ...
+
+    @overload
+    def select(
+        self,
+        model: type[ORM_Model],
+        filters: dict[Any, Any],
+        *,first: Literal[False] = False
+    ) -> list[ORM_Model]: ...
+
     def select(
             self,
-            model: type[Base],
-            filters: dict,
+            model: type[ORM_Model],
+            filters: dict[Any, Any],
             *,first: bool=False
-            )  -> Union[Base, list[Base], None]:
+            )  -> Union[ORM_Model, list[ORM_Model], None]:
         """
         在数据库查询条目
         说真的，你有多想不开要用这些增改删查方法，直接用upsert好了

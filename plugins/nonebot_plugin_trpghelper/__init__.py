@@ -27,9 +27,10 @@ from nonebot_plugin_apscheduler import scheduler
 
 from .config import Config
 from .data_manager import DataBaseManager, JsonIO
+from .fuzzy_query import the_chosen_one
 from .models import BroadcastModel, PostsModel
 from .post_func import Post
-from .utils import reply_generator
+from .utils import faq_generator, reply_generator
 from .validator import (
     ContentCheckResult,
     DateCheckResult,
@@ -54,13 +55,18 @@ BJ_TZ = ZoneInfo("Asia/Shanghai")
 
 db_path = storage.get_plugin_data_file("database.db")
 reply_path = storage.get_plugin_config_file("reply.json")
+faq_path = storage.get_plugin_data_file("faq.json")
 
 db_path.touch(exist_ok=True)
 if not reply_path.exists():
     reply_generator(reply_path)
 
+if not faq_path.exists():
+    faq_generator(faq_path)
+
 db = DataBaseManager(db_path)
 reply = JsonIO(reply_path).load()
+faq = JsonIO(faq_path).load()
 
 publish_recruitment = on_command("发车")
 @publish_recruitment.handle()
@@ -145,12 +151,43 @@ async def _(bot: Bot):
 
 close_recruitment = on_command("封车")
 @close_recruitment.handle()
-async def _(event: MessageEvent):
-    target = db.select(PostsModel, {"publisher_user_id": event.user_id}, first=True)
-    if target is None:
+async def _(event: MessageEvent, state: T_State, msg: Message = CommandArg()):
+    msg_str = msg.extract_plain_text().strip()
+    targets = db.select(PostsModel, {"publisher_user_id": event.user_id})
+    if not targets:
         await UniMessage.text(reply["close_recruitment_failed"]).finish()
-    db.delete(PostsModel, {"publisher_user_id": event.user_id})
-    await UniMessage.text(reply["close_recruitment_success"]).finish()
+    if len(targets) == 1:
+        db.delete(PostsModel, {"publisher_user_id": event.user_id})
+        await UniMessage.text(reply["close_recruitment_success"]).finish()
+    if msg_str and any(t.recruitment_code == msg_str for t in targets):
+        db.delete(
+            PostsModel,{
+                "publisher_user_id": event.user_id,
+                "recruitment_code": msg_str
+            })
+        await UniMessage.text(reply["close_recruitment_success"]).finish()
+    elif msg_str:
+        await UniMessage.text(reply["wrong_recruitment_code"]).finish()
+    state["records"] = targets
+    await UniMessage.text(reply["ask_for_uuid"]).send()
+
+@close_recruitment.got("recruitment_code")
+async def _(
+    state: T_State,
+    event: MessageEvent,
+    msg: str = ArgPlainText("recruitment_code")
+    ):
+    recruitment_code = msg.strip()
+    if recruitment_code and any(t.recruitment_code == recruitment_code for t in state["records"]):  # noqa: E501
+        db.delete(
+                PostsModel,{
+                    "publisher_user_id": event.user_id,
+                    "recruitment_code": recruitment_code
+                })
+        await UniMessage.text(reply["close_recruitment_success"]).finish()
+    elif recruitment_code:
+        await UniMessage.text(reply["wrong_recruitment_code"]).finish()
+    await UniMessage.text(reply["not_input_recruitment_code"]).finish()
 
 delete_recruitment = on_command("强制封车", permission=SUPERUSER)
 @delete_recruitment.handle()
@@ -201,13 +238,22 @@ async def _(event: GroupMessageEvent):
     db.delete(BroadcastModel, {"group_id": event.group_id})
     await UniMessage.text(reply["close_broadcast_success"]).finish()
 
-reload_reply = on_command("重载回复")
-@reload_reply.handle()
+reload_json = on_command("重载json")
+@reload_json.handle()
 async def _():
-    global reply  # noqa: PLW0603 目前重载的只有这一个json，之后再修吧
+    global reply  # noqa: PLW0603 重载方法
+    global faq  # noqa: PLW0603 重载方法
     reply = JsonIO(reply_path).load()
+    faq = JsonIO(faq_path).load()
     await UniMessage.text("success").finish()
 
+faqer = on_command("faq")
+@faqer.handle()
+async def _(msg: Message = CommandArg()):
+    msg_str = msg.extract_plain_text().strip()
+    target = the_chosen_one(msg_str, faq)[0]
+    answer = faq[target]["content"]
+    await UniMessage.text(answer).finish()
 
 @scheduler.scheduled_job("interval", minutes=1)
 async def _():

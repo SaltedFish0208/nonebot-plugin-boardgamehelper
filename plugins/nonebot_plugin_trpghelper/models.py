@@ -13,6 +13,7 @@ class PostsModel(Base):
     recruitment_code: Mapped[str] = mapped_column(String, primary_key=True)
     publisher_user_id: Mapped[str] = mapped_column(String)
     publisher_name: Mapped[str] = mapped_column(String)
+    rule: Mapped[str] = mapped_column(String)
     content: Mapped[str] = mapped_column(String)
     end_time: Mapped[datetime] = mapped_column(DateTime)
 

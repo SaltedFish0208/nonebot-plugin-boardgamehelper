@@ -20,8 +20,10 @@ class ContentCheckResult(Enum):
 
 # 北京时间 UTC+8
 BJ_TZ = ZoneInfo("Asia/Shanghai")
+_NEWLINE_PATTERN = re.compile(r"\r\n|\r|\n|\v|\f|\x85|\u2028|\u2029")
 
-
+def _normalize_newlines(text: str) -> str:
+    return _NEWLINE_PATTERN.sub("\n", text)
 
 def _need_insert_newlines(text: str) -> bool:
     max_square_brackets = 2
@@ -102,6 +104,7 @@ def _pre_process(input_str: str) -> str:
     before_content = r"^[^\[]+"
     input_str = re.sub(combined_pattern, "", input_str).strip()
     input_str = re.sub(before_content, "", input_str).strip()
+    input_str = _normalize_newlines(input_str)
     return input_str  # noqa: RET504 shut fuck up 如果之后有其他正则匹配需求怎么办
 
 def validate_content(input_str: str) -> tuple[list[ContentCheckResult], str]:
@@ -136,3 +139,10 @@ def validate_content(input_str: str) -> tuple[list[ContentCheckResult], str]:
 
     # 全部存在后返回枚举值OK和格式化好的字符串
     return ([ContentCheckResult.OK], normalized)
+
+
+def get_rules(input_str: str) -> str:
+    rule = re.search(r"(?<=\[游戏规则\]).+", input_str)
+    if rule:
+        return rule.group()
+    return ""

@@ -30,10 +30,11 @@ from .data_manager import DataBaseManager, JsonIO
 from .fuzzy_query import the_chosen_one
 from .models import BroadcastModel, PostsModel
 from .post_func import Post
-from .utils import faq_generator, reply_generator
+from .utils import faq_generator, reply_generator, rules_aliases_generator
 from .validator import (
     ContentCheckResult,
     DateCheckResult,
+    get_rules,
     validate_content,
     validate_datetime,
 )
@@ -55,6 +56,7 @@ BJ_TZ = ZoneInfo("Asia/Shanghai")
 
 db_path = storage.get_plugin_data_file("database.db")
 reply_path = storage.get_plugin_config_file("reply.json")
+rule_aliases_path = storage.get_plugin_config_file("rule_aliases.json")
 faq_path = storage.get_plugin_data_file("faq.json")
 
 db_path.touch(exist_ok=True)
@@ -64,21 +66,17 @@ if not reply_path.exists():
 if not faq_path.exists():
     faq_generator(faq_path)
 
+if not rule_aliases_path.exists():
+    rules_aliases_generator(rule_aliases_path)
+
 db = DataBaseManager(db_path)
 reply = JsonIO(reply_path).load()
 faq = JsonIO(faq_path).load()
+rule_aliases = JsonIO(rule_aliases_path).load()
 
 publish_recruitment = on_command("发车")
 @publish_recruitment.handle()
 async def _(event: MessageEvent, state: T_State):
-    if db.select(
-        PostsModel,
-        {
-            "publisher_user_id": event.user_id
-        },
-        first=True
-        ) is not None:
-        await UniMessage.text(reply["already_publish"]).finish()
     await UniMessage.text(reply["publish_tip"]).send()
     state["publisher_user_id"] = event.user_id
     state["publisher_name"] = event.sender.nickname
@@ -120,13 +118,30 @@ async def _(state:T_State, message: str = ArgPlainText("end_time")):
             except exception.ActionFailed:
                 db.delete(BroadcastModel, {"group_id": group_id})
     packaged = post.to_dict()
+    raw_rule = get_rules(state["recruitment_content"]).strip()
+    try:
+        packaged["rule"] = rule_aliases[raw_rule]
+    except KeyError:
+        packaged["rule"] = "Unknown"
     db.upsert(PostsModel, packaged)
     await UniMessage.text(reply["published"]).finish()
 
 query_recruitment = on_command("查车")
 @query_recruitment.handle()
-async def _(bot: Bot):
-    all_recruitments = db.select(PostsModel, {}, first=False)
+async def _(bot: Bot, msg: Message = CommandArg()):
+    msg_str = msg.extract_plain_text().strip()
+    rule = "所有规则"
+    if msg_str:
+        try:
+            rule = rule_aliases[msg_str.lower()]
+        except KeyError:
+            await UniMessage.text(reply["no_rules"]).finish()
+        all_recruitments = db.select(
+            PostsModel,
+            {"rule": rule},
+            first=False)
+    else:
+        all_recruitments = db.select(PostsModel, {}, first=False)
     all_recruitments = cast("list[PostsModel]", all_recruitments)
     recruitments_now = []
     recruitments_after = []
@@ -143,6 +158,7 @@ async def _(bot: Bot):
     recruitments_now.insert(0, UniMessage.text(reply["recruitments_now"]))
     recruitments_after.insert(0, UniMessage.text(reply["recruitments_after"]))
     seq = recruitments_now + recruitments_after
+    seq.insert(0, UniMessage.text(f'{reply["what_rule_you_search"]}{rule}'))
     await UniMessage.reference(*[
             CustomNode(uid=bot.self_id, name="Amadeus", content=msg)
             for msg in seq
@@ -211,7 +227,7 @@ async def _(msg: Message = CommandArg()):
         await UniMessage.text(reply["delete_recruitment_success"]).finish()
 
 open_broadcast = on_command(
-    "开启全群广播",
+    "开启广播",
     permission=SUPERUSER|GROUP_ADMIN|GROUP_OWNER
     )
 @open_broadcast.handle()
@@ -228,7 +244,7 @@ async def _(bot: Bot, event: GroupMessageEvent):
     await UniMessage.text(reply["open_broadcast_success"]).finish()
 
 close_broadcast = on_command(
-    "关闭全群广播",
+    "关闭广播",
     permission=SUPERUSER|GROUP_ADMIN|GROUP_OWNER
     )
 @close_broadcast.handle()
@@ -243,8 +259,10 @@ reload_json = on_command("重载json")
 async def _():
     global reply  # noqa: PLW0603 重载方法
     global faq  # noqa: PLW0603 重载方法
+    global rule_aliases  # noqa: PLW0603
     reply = JsonIO(reply_path).load()
     faq = JsonIO(faq_path).load()
+    rule_aliases = JsonIO(rule_aliases_path).load()
     await UniMessage.text("success").finish()
 
 faqer = on_command("faq")
@@ -258,4 +276,4 @@ async def _(msg: Message = CommandArg()):
 @scheduler.scheduled_job("interval", minutes=1)
 async def _():
     count = db.cleanup_expired(PostsModel, PostsModel.end_time, 0)
-    logger.info(f"清理了 {count} 条过时信息")
+    logger.debug(f"清理了 {count} 条过时信息")

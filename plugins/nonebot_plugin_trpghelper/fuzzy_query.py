@@ -71,7 +71,7 @@ def fuzzy_score(
         keywords_score = keywords_score + tmp
         keywords_rounds = keywords_rounds_tmp
     return int(
-        title_score+(aliases_score/aliases_rounds)+(keywords_score/keywords_rounds*0.2)
+        title_score+(aliases_score/aliases_rounds*0.8)+(keywords_score/keywords_rounds*0.2)
         )
 
 def the_chosen_one(query: str, faqdata: dict) -> tuple[str, int]:

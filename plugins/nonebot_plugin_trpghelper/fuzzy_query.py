@@ -1,3 +1,5 @@
+import heapq
+
 from rapidfuzz import fuzz
 
 
@@ -71,7 +73,7 @@ def fuzzy_score(
         keywords_score = keywords_score + tmp
         keywords_rounds = keywords_rounds_tmp
     return int(
-        title_score+(aliases_score/aliases_rounds*0.8)+(keywords_score/keywords_rounds*0.2)
+        title_score+(aliases_score/aliases_rounds*0.8)+(keywords_score/keywords_rounds*0.5)
         )
 
 def the_chosen_one(query: str, faqdata: dict) -> tuple[str, int]:
@@ -82,4 +84,15 @@ def the_chosen_one(query: str, faqdata: dict) -> tuple[str, int]:
     return max(
         the_chosen.items(),
         key=lambda item: item[1]
+    )
+
+def the_chosen_five(query: str, faqdata:dict) -> list[tuple[str, int]]:
+    data = FlattenDataProcesser(faqdata)
+    the_chosen = {}
+    for x,y,z in zip(data.title_list, data.aliases_list, data.keywords_list):
+        the_chosen[x[0]] = fuzzy_score(query, x, y, z)
+    return heapq.nlargest(
+        5,
+        the_chosen,
+        key=lambda k: the_chosen[k]
     )

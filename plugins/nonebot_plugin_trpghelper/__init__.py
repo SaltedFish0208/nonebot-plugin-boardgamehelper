@@ -3,6 +3,7 @@ from typing import cast
 from zoneinfo import ZoneInfo
 
 from nonebot import get_plugin_config, logger, on_command, require
+from nonebot.matcher import Matcher
 
 require("nonebot_plugin_alconna")
 require("nonebot_plugin_apscheduler")
@@ -27,7 +28,7 @@ from nonebot_plugin_apscheduler import scheduler
 
 from .config import Config
 from .data_manager import DataBaseManager, JsonIO
-from .fuzzy_query import the_chosen_one
+from .fuzzy_query import the_chosen_five
 from .models import BroadcastModel, PostsModel
 from .post_func import Post
 from .utils import faq_generator, reply_generator, rules_aliases_generator
@@ -267,11 +268,39 @@ async def _():
 
 faqer = on_command("faq")
 @faqer.handle()
-async def _(msg: Message = CommandArg()):
+async def _(matcher: Matcher, msg: Message = CommandArg()):
     msg_str = msg.extract_plain_text().strip()
-    target = the_chosen_one(msg_str, faq)[0]
-    answer = faq[target]["content"]
-    await UniMessage.text(answer).finish()
+    if msg_str.isdigit():
+        await matcher.finish()
+#        try:
+#            answer = faq[f"qa{msg_str}"]["content"]
+#            await UniMessage.text(answer).finish()
+#        except KeyError:
+#            await UniMessage.text(reply["no_content"]).finish()
+    else:
+        targets = the_chosen_five(msg_str, faq)
+        targets_title = [
+            f"{target[2:]}. {faq[target]['title']}"
+            for target in targets
+        ]
+        await (UniMessage
+            .text(reply["guess_you_want"])
+            .text("\n".join(targets_title))
+            .text(reply["please_use_index"])
+            .send())
+
+
+@faqer.got("faq_index")
+async def _(state: T_State, msg: str = ArgPlainText("faq_index")):
+    msg_str = msg.strip()
+    if not msg_str.isdigit():
+        await UniMessage.text(reply["not_digit"]).finish()
+    try:
+        answer = faq[f"qa{state['faq_index']}"]["content"]
+        await UniMessage.text(answer).finish()
+    except KeyError:
+        await UniMessage.text(reply["no_content"]).finish()
+
 
 @scheduler.scheduled_job("interval", minutes=1)
 async def _():

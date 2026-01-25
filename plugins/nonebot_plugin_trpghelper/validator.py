@@ -144,5 +144,11 @@ def validate_content(input_str: str) -> tuple[list[ContentCheckResult], str]:
 def get_rules(input_str: str) -> str:
     rule = re.search(r"(?<=\[游戏规则\]).+", input_str)
     if rule:
-        return rule.group()
+        return rule.group().lower()
     return ""
+
+def match_rules(rules: list[str], source: str) -> str:
+    return next((r for r in rules if r in source), "")
+
+def split_rules(raw_rules: str) -> list[str]:
+    return re.split(r"[,，/\s;]+", raw_rules)

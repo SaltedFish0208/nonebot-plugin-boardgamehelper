@@ -5,6 +5,8 @@ from zoneinfo import ZoneInfo
 from nonebot import get_plugin_config, logger, on_command, require
 from nonebot.matcher import Matcher
 
+from .ban_permisson import OVERWATCH
+
 require("nonebot_plugin_alconna")
 require("nonebot_plugin_apscheduler")
 require("nonebot_plugin_localstore")
@@ -36,6 +38,8 @@ from .validator import (
     ContentCheckResult,
     DateCheckResult,
     get_rules,
+    match_rules,
+    split_rules,
     validate_content,
     validate_datetime,
 )
@@ -102,28 +106,33 @@ async def _(state:T_State, message: str = ArgPlainText("end_time")):
         missing = "\n".join(error_list)
         await UniMessage.text(reply["date_missing_sth"]).text("\n").text(missing).text("\n").text(reply["please_check"]).finish()  # noqa: E501
     time = cast("datetime", result[1])
+    raw_rule_no_match = get_rules(state["recruitment_content"]).strip()
+    raw_rule = match_rules(list(rule_aliases.keys()), raw_rule_no_match)
+    try:
+        game_rule = rule_aliases[raw_rule]
+    except KeyError:
+        game_rule = "未知神秘"
     post = Post(
         user_id=state["publisher_user_id"],
         user_name=state["publisher_name"],
         content=state["recruitment_content"],
-        end_time=time
+        end_time=time,
+        rule=game_rule
     )
     broadcast_groups = db.select(BroadcastModel, {}, first=False)
     broadcast_groups = cast("list[BroadcastModel]", broadcast_groups)
-    ids = [group.group_id for group in broadcast_groups]
-    if ids:
-        for group_id in ids:
-            target = Target(group_id, scope=SupportScope.qq_client)
-            try:
-                await post.to_unimessage().send(target=target)
-            except exception.ActionFailed:
-                db.delete(BroadcastModel, {"group_id": group_id})
+    for group in broadcast_groups:
+        target = Target(group.group_id, scope=SupportScope.qq_client)
+        if game_rule not in group.subscription_list:
+            await UniMessage.text(
+                reply["new_publish_info"].format(rule=game_rule)
+                ).send(target=target)
+            continue
+        try:
+            await post.to_unimessage().send(target=target)
+        except exception.ActionFailed:
+            db.delete(BroadcastModel, {"group_id": group.group_id})
     packaged = post.to_dict()
-    raw_rule = get_rules(state["recruitment_content"]).strip()
-    try:
-        packaged["rule"] = rule_aliases[raw_rule]
-    except KeyError:
-        packaged["rule"] = "Unknown"
     db.upsert(PostsModel, packaged)
     await UniMessage.text(reply["published"]).finish()
 
@@ -206,7 +215,7 @@ async def _(
         await UniMessage.text(reply["wrong_recruitment_code"]).finish()
     await UniMessage.text(reply["not_input_recruitment_code"]).finish()
 
-delete_recruitment = on_command("强制封车", permission=SUPERUSER)
+delete_recruitment = on_command("强制封车", permission=SUPERUSER|OVERWATCH)
 @delete_recruitment.handle()
 async def _(msg: Message = CommandArg()):
     msg_str = msg.extract_plain_text().strip()
@@ -232,17 +241,119 @@ open_broadcast = on_command(
     permission=SUPERUSER|GROUP_ADMIN|GROUP_OWNER
     )
 @open_broadcast.handle()
-async def _(bot: Bot, event: GroupMessageEvent):
+async def _(bot: Bot, event: GroupMessageEvent, msg: Message = CommandArg()):
+    args = msg.extract_plain_text().lower().strip()
+    group_info = await bot.call_api("get_group_info", group_id=event.group_id)
     if db.select(BroadcastModel, {"group_id": event.group_id}, first=True) is not None:
         await UniMessage.text(reply["broadcast_exists"]).finish()
-    group_info = await bot.call_api("get_group_info", group_id=event.group_id)
+    if not args:
+        db.upsert(
+            BroadcastModel,
+            {
+                "group_id": event.group_id,
+                "group_name": group_info["group_name"],
+                "subscription_list": []
+            })
+        await UniMessage.text(reply["open_broadcast_success"]).finish()
+    args_raw = split_rules(args)
+    resolved_args = set()
+    unknown_args = []
+    for arg in args_raw:
+        if arg in rule_aliases:
+            resolved_args.add(rule_aliases[arg])
+        else:
+            unknown_args.append(arg)
+    if unknown_args:
+        await UniMessage.text(
+            reply["unknown_rules"] + ", ".join(unknown_args)
+        ).finish()
     db.upsert(
         BroadcastModel,
         {
             "group_id": event.group_id,
-            "group_name": group_info["group_name"]
+            "group_name": group_info["group_name"],
+            "subscription_list": list(resolved_args)
         })
     await UniMessage.text(reply["open_broadcast_success"]).finish()
+
+
+check_subscription = on_command(
+    "当前订阅",
+    permission=SUPERUSER|GROUP_ADMIN|GROUP_OWNER
+    )
+@check_subscription.handle()
+async def _(event: GroupMessageEvent):
+    group_info = db.select(BroadcastModel, {"group_id": event.group_id}, first=True)
+    if not group_info:
+        await UniMessage.text(reply["broadcast_not_exist_no_sub"]).finish()
+    await UniMessage.text(
+        f"{reply['check_subscripted']}{group_info.subscription_list}"
+        ).finish()
+
+add_subscription = on_command(
+    "添加订阅",
+    permission=SUPERUSER|GROUP_ADMIN|GROUP_OWNER
+)
+@add_subscription.handle()
+async def _(bot: Bot, event: GroupMessageEvent, msg: Message = CommandArg()):
+    args = msg.extract_plain_text().lower().strip()
+    group_info = await bot.call_api("get_group_info", group_id=event.group_id)
+    args_raw = split_rules(args)
+    resolved_args = set()
+    unknown_args = []
+    for arg in args_raw:
+        if arg in rule_aliases:
+            resolved_args.add(rule_aliases[arg])
+        else:
+            unknown_args.append(arg)
+    if unknown_args:
+        await UniMessage.text(
+            reply["unknown_rules"] + ", ".join(unknown_args)
+        ).finish()
+    sub_info = db.select(BroadcastModel, {"group_id": event.group_id}, first=True)
+    if sub_info:
+        final = list(resolved_args | set(sub_info.subscription_list))
+        db.upsert(
+            BroadcastModel,
+            {
+                "group_id": event.group_id,
+                "group_name": group_info["group_name"],
+                "subscription_list": final
+            })
+        await UniMessage.text(f"{reply['update_sub_finish']}{final}").send()
+
+remove_subscription = on_command(
+    "移除订阅",
+    permission=SUPERUSER|GROUP_ADMIN|GROUP_OWNER
+)
+@remove_subscription.handle()
+async def _(bot: Bot, event: GroupMessageEvent, msg: Message = CommandArg()):
+    args = msg.extract_plain_text().lower().strip()
+    group_info = await bot.call_api("get_group_info", group_id=event.group_id)
+    args_raw = split_rules(args)
+    resolved_args = set()
+    unknown_args = []
+    for arg in args_raw:
+        if arg in rule_aliases:
+            resolved_args.add(rule_aliases[arg])
+        else:
+            unknown_args.append(arg)
+    if unknown_args:
+        await UniMessage.text(
+            reply["unknown_rules"] + ", ".join(unknown_args)
+        ).finish()
+    sub_info = db.select(BroadcastModel, {"group_id": event.group_id}, first=True)
+    if sub_info:
+        final = list(set(sub_info.subscription_list) - resolved_args)
+        db.upsert(
+            BroadcastModel,
+            {
+                "group_id": event.group_id,
+                "group_name": group_info["group_name"],
+                "subscription_list": final
+            })
+        await UniMessage.text(f"{reply['update_sub_finish']}{final}").send()
+
 
 close_broadcast = on_command(
     "关闭广播",

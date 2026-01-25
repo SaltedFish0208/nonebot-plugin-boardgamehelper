@@ -23,6 +23,7 @@ class Post:
             self, user_id: str,
             user_name: str,
             content: str,
+            rule: str,
             end_time: datetime
             ) -> None:
         self.recruitment_code: str = shortuuid.ShortUUID(alphabet=alphabet).random(4)
@@ -30,6 +31,7 @@ class Post:
         self.publisher_name = user_name
         self.content = content
         self.end_time = end_time
+        self.rule = rule
 
     def to_dict(self) -> dict:
         """
@@ -40,7 +42,8 @@ class Post:
             "publisher_user_id": self.publisher_user_id,
             "publisher_name": self.publisher_name,
             "content": self.content,
-            "end_time": self.end_time
+            "end_time": self.end_time,
+            "rule": self.rule
         }
     @classmethod
     def from_orm_class(cls, data: "PostsModel") -> "Post":
@@ -51,7 +54,8 @@ class Post:
             user_id = data.publisher_user_id,
             user_name = data.publisher_name,
             content = data.content,
-            end_time = data.end_time
+            end_time = data.end_time,
+            rule = data.rule
         )
         post.recruitment_code = data.recruitment_code
         return post

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import JSON, DateTime, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -22,6 +22,7 @@ class BroadcastModel(Base):
 
     group_id: Mapped[str] = mapped_column(String, primary_key=True)
     group_name: Mapped[str] = mapped_column(String)
+    subscription_list: Mapped[list] = mapped_column(JSON)
 
 class PictpackMode(Base):
     __tablename__ = "picture_packs"

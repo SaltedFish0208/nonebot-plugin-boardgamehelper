@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Literal, Optional, TypeVar, Union, overload
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import URL, create_engine
+from sqlalchemy import URL, create_engine, update
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -134,6 +134,25 @@ class DataBaseManager:
                 set_=update_data
             )
             session.execute(upsert_stmt)
+            session.commit()
+
+    def _update_column(
+            self,
+            model: type[Base],
+            new_value: dict
+            ) -> None:
+        """
+        更新表中某一列的所有值
+
+        Args:
+            model: ORM模型类
+            column_name: 要更新的列名
+            new_value: 新值
+            get_session: 获取数据库 session 的方法
+        """
+        with self.get_session() as session:
+            stmt = update(model).values(new_value)
+            session.execute(stmt)
             session.commit()
 
     def cleanup_expired(

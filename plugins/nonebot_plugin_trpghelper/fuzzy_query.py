@@ -57,30 +57,26 @@ def fuzzy_score(
         query: str,
         title: tuple,
         aliases: list[tuple],
-        keywords: list[tuple]
         ) -> int:
     title_score: float = fuzz.ratio(query.lower(), title[1].lower())
     aliases_score: float = 0.0
     keywords_score: float = 0.0
     aliases_rounds = 0
-    keywords_rounds = 0
     for aliases_rounds_tmp, i in enumerate(aliases):
         tmp = fuzz.ratio(query.lower(), i[1].lower())
         aliases_score = aliases_score + tmp
         aliases_rounds = aliases_rounds_tmp
-    for keywords_rounds_tmp, i in enumerate(keywords):
         tmp = fuzz.partial_ratio(query.lower(), i[1].lower())
         keywords_score = keywords_score + tmp
-        keywords_rounds = keywords_rounds_tmp
     return int(
-        title_score+(aliases_score/aliases_rounds*0.8)+(keywords_score/keywords_rounds*0.5)
+        title_score+(aliases_score/aliases_rounds*0.8)
         )
 
 def the_chosen_one(query: str, faqdata: dict) -> tuple[str, int]:
     data = FlattenDataProcesser(faqdata)
     the_chosen = {}
-    for x,y,z in zip(data.title_list, data.aliases_list, data.keywords_list):
-        the_chosen[x[0]] = fuzzy_score(query, x, y, z)
+    for x,y in zip(data.title_list, data.aliases_list):
+        the_chosen[x[0]] = fuzzy_score(query, x, y)
     return max(
         the_chosen.items(),
         key=lambda item: item[1]
@@ -89,8 +85,8 @@ def the_chosen_one(query: str, faqdata: dict) -> tuple[str, int]:
 def the_chosen_five(query: str, faqdata:dict) -> list[tuple[str, int]]:
     data = FlattenDataProcesser(faqdata)
     the_chosen = {}
-    for x,y,z in zip(data.title_list, data.aliases_list, data.keywords_list):
-        the_chosen[x[0]] = fuzzy_score(query, x, y, z)
+    for x,y in zip(data.title_list, data.aliases_list):
+        the_chosen[x[0]] = fuzzy_score(query, x, y)
     return heapq.nlargest(
         5,
         the_chosen,

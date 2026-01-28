@@ -152,3 +152,26 @@ def match_rules(rules: list[str], source: str) -> str:
 
 def split_rules(raw_rules: str) -> list[str]:
     return re.split(r"[,，/\s;]+", raw_rules)
+
+def priority_replace(text: str, b: dict[str, str], a: dict[str, str]) -> str:
+    # 去掉 key == value 的项
+    b = {k: v for k, v in b.items() if k != v}
+    a = {k: v for k, v in a.items() if k != v}
+
+    # 构造优先级正则：b 在前，a 在后
+    keys_b = sorted(b, key=len, reverse=True)
+    keys_a = sorted(a, key=len, reverse=True)
+
+    pattern = re.compile("|".join(
+        re.escape(k) for k in (keys_b + keys_a)
+    ))
+
+    def replacer(match: re.Match[str]):
+        key = match.group()
+        if key in b:
+            return b[key]   # 优先 b
+        return a[key]       # 否则 a
+
+    return pattern.sub(replacer, text)
+
+

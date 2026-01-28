@@ -33,12 +33,18 @@ from .data_manager import DataBaseManager, JsonIO
 from .fuzzy_query import the_chosen_five
 from .models import BroadcastModel, PostsModel
 from .post_func import Post
-from .utils import faq_generator, reply_generator, rules_aliases_generator
+from .utils import (
+    faq_aliases_generator,
+    faq_generator,
+    reply_generator,
+    rules_aliases_generator,
+)
 from .validator import (
     ContentCheckResult,
     DateCheckResult,
     get_rules,
     match_rules,
+    priority_replace,
     split_rules,
     validate_content,
     validate_datetime,
@@ -63,6 +69,7 @@ db_path = storage.get_plugin_data_file("database.db")
 reply_path = storage.get_plugin_config_file("reply.json")
 rule_aliases_path = storage.get_plugin_config_file("rule_aliases.json")
 faq_path = storage.get_plugin_data_file("faq.json")
+faq_aliases_path = storage.get_plugin_config_file("faq_aliases.json")
 
 db_path.touch(exist_ok=True)
 if not reply_path.exists():
@@ -74,10 +81,14 @@ if not faq_path.exists():
 if not rule_aliases_path.exists():
     rules_aliases_generator(rule_aliases_path)
 
+if not faq_aliases_path.exists():
+    faq_aliases_generator(faq_aliases_path)
+
 db = DataBaseManager(db_path)
 reply = JsonIO(reply_path).load()
 faq = JsonIO(faq_path).load()
 rule_aliases = JsonIO(rule_aliases_path).load()
+faq_aliases = JsonIO(faq_aliases_path).load()
 
 publish_recruitment = on_command("发车")
 @publish_recruitment.handle()
@@ -123,13 +134,13 @@ async def _(state:T_State, message: str = ArgPlainText("end_time")):
     broadcast_groups = cast("list[BroadcastModel]", broadcast_groups)
     for group in broadcast_groups:
         target = Target(group.group_id, scope=SupportScope.qq_client)
-        if game_rule not in group.subscription_list:
-            await UniMessage.text(
-                reply["new_publish_info"].format(rule=game_rule)
-                ).send(target=target)
-            continue
         try:
-            await post.to_unimessage().send(target=target)
+            if game_rule not in group.subscription_list:
+                await UniMessage.text(
+                    reply["new_publish_info"].format(rule=game_rule)
+                ).send(target=target)
+            else:
+                await post.to_unimessage().send(target=target)
         except exception.ActionFailed:
             db.delete(BroadcastModel, {"group_id": group.group_id})
     packaged = post.to_dict()
@@ -372,15 +383,17 @@ async def _():
     global reply  # noqa: PLW0603 重载方法
     global faq  # noqa: PLW0603 重载方法
     global rule_aliases  # noqa: PLW0603
+    global faq_aliases  # noqa: PLW0603
     reply = JsonIO(reply_path).load()
     faq = JsonIO(faq_path).load()
     rule_aliases = JsonIO(rule_aliases_path).load()
+    faq_aliases = JsonIO(faq_aliases_path).load()
     await UniMessage.text("success").finish()
 
 faqer = on_command("faq")
 @faqer.handle()
 async def _(matcher: Matcher, msg: Message = CommandArg()):
-    msg_str = msg.extract_plain_text().strip()
+    msg_str = msg.extract_plain_text().strip().lower()
     if msg_str.isdigit():
         await matcher.finish()
 #        try:
@@ -389,7 +402,8 @@ async def _(matcher: Matcher, msg: Message = CommandArg()):
 #        except KeyError:
 #            await UniMessage.text(reply["no_content"]).finish()
     else:
-        targets = the_chosen_five(msg_str, faq)
+        processed_msg_str = priority_replace(msg_str, rule_aliases, faq_aliases)
+        targets = the_chosen_five(processed_msg_str, faq)
         targets_title = [
             f"{target[2:]}. {faq[target]['title']}"
             for target in targets

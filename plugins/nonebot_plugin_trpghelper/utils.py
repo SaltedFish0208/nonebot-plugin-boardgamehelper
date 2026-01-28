@@ -50,3 +50,8 @@ def rules_aliases_generator(path: "Path") -> None:
         "龙与地下城": "龙与地下城"
     }
     json_file.save(aliases)
+
+def faq_aliases_generator(path: "Path") -> None:
+    json_file = JsonIO(path)
+    aliases = {}
+    json_file.save(aliases)
